@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="dark" />
+<title>Human Anatomy Laboratory</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="./style.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/examples/jsm/",
+    "three/examples/jsm/": "./vendor/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="scene"></div>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="loading-inner">
+    <h1>Human Anatomy Laboratory</h1>
+    <p>Loading anatomical systems</p>
+    <div class="loadrail"><div id="load-bar"></div></div>
+    <span id="load-text">0%</span>
+    <div id="boot-error" class="hidden">
+      <p class="boot-title">Something went wrong while starting.</p>
+      <pre id="boot-msg"></pre>
+      <button class="btn" onclick="location.reload()">Reload</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header id="topbar">
+  <div class="brand">
+    <h1>Anatomy<span>Lab</span></h1>
+    <p>Interactive 3D human anatomy</p>
+  </div>
+  <div id="body-switch" class="bswitch" role="group" aria-label="Body model">
+    <button class="seg active" data-cmd="body" data-body="male" title="Male body (Z-Anatomy / BodyParts3D)">Male</button>
+    <button class="seg" data-cmd="body" data-body="female" title="Female body (Visible-Human via HuBMAP CCF, CC BY 4.0)">Female</button>
+  </div>
+  <div id="search-wrap">
+    <input id="search" type="search" placeholder="Search a structure — femur, artery, kidney…" autocomplete="off" spellcheck="false" />
+    <div id="search-results" class="hidden"></div>
+  </div>
+  <div class="hint"><b>↑</b> Ctrl+F search · <b>F</b> focus · <b>X</b> x-ray · <b>?</b> help</div>
+</header>
+
+<!-- Left: systems + dissection -->
+<aside id="sidePanel">
+  <h2>Systems</h2>
+  <div id="sysGrid" class="sysgrid">
+    <button class="sys" data-system="skeletal"><i>🦴</i><span>Skeletal</span></button>
+    <button class="sys" data-system="muscular"><i>💪</i><span>Muscular</span></button>
+    <button class="sys" data-system="cardiovascular"><i>🫀</i><span>Cardiovascular</span></button>
+    <button class="sys" data-system="nervous"><i>🧠</i><span>Nervous</span></button>
+    <button class="sys" data-system="respiratory"><i>🫁</i><span>Respiratory</span></button>
+    <button class="sys" data-system="digestive"><i>🌿</i><span>Digestive</span></button>
+    <button class="sys" data-system="urinary"><i>🫘</i><span>Urinary</span></button>
+    <button class="sys" data-system="reproductive"><i>🔴</i><span>Reproductive</span></button>
+    <button class="sys" data-system="endocrine"><i>🔬</i><span>Endocrine</span></button>
+    <button class="sys" data-system="lymphatic"><i>🩶</i><span>Lymphatic</span></button>
+    <button class="sys" data-system="integumentary"><i>🧑</i><span>Integumentary</span></button>
+  </div>
+
+  <h2 class="mt">Dissection depth</h2>
+  <div class="depthrow">
+    <label id="depth-label">Surface</label>
+    <input id="depth" type="range" min="0" max="4" step="1" value="0" />
+  </div>
+  <label class="chk" for="xray-toggle">
+    <input id="xray-toggle" type="checkbox" />
+    <span>X-ray view (bone-scan)</span>
+  </label>
+  <label class="chk" for="labels-pin">
+    <input id="labels-pin" type="checkbox" />
+    <span>Pin labels</span>
+  </label>
+
+  <div class="spacer"></div>
+  <button class="btn ghost" data-cmd="reset-view">Reset view</button>
+  <button class="btn ghost" data-cmd="fullscreen">Fullscreen</button>
+  <button class="btn ghost" data-cmd="screenshot">Screenshot</button>
+</aside>
+
+<!-- Bottom toolbar -->
+<nav id="toolbar" aria-label="Views">
+  <button class="tb" data-cmd="view-front"><span>Front</span><sub>1</sub></button>
+  <button class="tb" data-cmd="view-back"><span>Back</span></button>
+  <button class="tb" data-cmd="view-left"><span>Left</span></button>
+  <button class="tb" data-cmd="view-right"><span>Right</span></button>
+  <button class="tb" data-cmd="view-top"><span>Top</span></button>
+  <button class="tb" data-cmd="view-bottom"><span>Bottom</span></button>
+  <span class="tb-sep"></span>
+  <button class="tb" data-cmd="focus-selected"><span>Focus ⧉</span><sub>F</sub></button>
+  <button class="tb" data-cmd="audio" title="Heartbeat & breathing — click to mute"><span>Sound: ON</span><sub>M</sub></button>
+  <button class="tb" data-cmd="learn"><span>Learn</span></button>
+  <button class="tb" data-cmd="quiz"><span>Quiz</span></button>
+  <button class="tb" data-cmd="help"><span>Help</span><sub>?</sub></button>
+  <span class="tb-sep"></span>
+  <label class="tb-quality">Quality
+    <select id="quality">
+      <option value="low">Low</option>
+      <option value="balanced" selected>Balanced</option>
+      <option value="high">High</option>
+      <option value="ultra">Ultra 4K</option>
+    </select>
+  </label>
+</nav>
+
+<!-- Label overlay (float) -->
+<div id="label-overlay">
+  <div id="label-name" class="hidden">—</div>
+  <div id="label-meta" class="hidden">—</div>
+</div>
+
+<!-- Info panel -->
+<aside id="info-panel" class="hidden">
+  <div class="ip-head">
+    <div>
+      <h3 id="info-title">—</h3>
+      <p id="info-subtitle">—</p>
+    </div>
+    <button id="info-close" aria-label="Close">&times;</button>
+  </div>
+  <dl id="info-table">
+    <dt>Structure</dt><dd id="info-name">—</dd>
+    <dt>Side</dt><dd id="info-side">—</dd>
+    <dt>System</dt><dd id="info-sys2">—</dd>
+    <dt>Region</dt><dd id="info-region2">—</dd>
+    <dt>Tissue</dt><dd id="info-tissue">—</dd>
+    <dt>Geometry</dt><dd id="info-meshes">—</dd>
+  </dl>
+  <div id="info-fma" class="hidden">
+    <div class="fma-line"><b id="info-fma-id">—</b><span class="pill" id="info-fma-status">—</span></div>
+    <div id="info-fma-name">—</div>
+    <p id="info-fma-note" class="warn hidden">Mapping is inferred from the model's mesh names and is not yet clinically verified. Verify against an anatomical atlas before citing.</p>
+  </div>
+  <div class="ip-actions">
+    <button class="btn" id="info-focus">Focus</button>
+    <button class="btn ghost" id="clear-selection">Clear</button>
+  </div>
+</aside>
+
+<!-- Help -->
+<aside id="help-panel" class="hidden">
+  <h3>Shortcuts &amp; gestures</h3>
+  <table>
+    <tr><td>Top-left toggle</td><td>switch Male / Female body model</td></tr>
+    <tr><td>Drag</td><td>rotate camera</td></tr>
+    <tr><td>Scroll</td><td>zoom</td></tr>
+    <tr><td>Left-drag / move</td><td>select / hover a structure</td></tr>
+    <tr><td>Ctrl+F</td><td>search</td></tr>
+    <tr><td>F</td><td>focus selection</td></tr>
+    <tr><td>1–5</td><td>systems: skeletal, muscular, vascular, nervous, respiratory</td></tr>
+    <tr><td>X</td><td>x-ray view</td></tr>
+    <tr><td>R</td><td>reset view</td></tr>
+    <tr><td>M</td><td>mute / unmute heartbeat &amp; breathing</td></tr>
+    <tr><td>Esc</td><td>clear selection</td></tr>
+  </table>
+  <p class="faq">Models are decoded once, then a local copy is kept so repeat visits open instantly. <span id="cache-info"></span> <button class="btn ghost" id="clear-cache">Clear model cache</button></p>
+  <p class="faq">This laboratory renders real anatomical models in a shared frame. FMA identifiers are shown only when a strong name match could be verified from the BodyParts3D parts list; otherwise the status reads <b>Not verified</b>. No anatomical fact is invented.</p>
+</aside>
+
+<!-- Learn (verified study list) -->
+<aside id="learn-panel" class="hidden">
+  <div class="ip-head">
+    <div>
+      <h3>Learn — verified structures</h3>
+      <p id="learn-sub">Only FMA-verified structures are listed. Nothing is invented.</p>
+    </div>
+    <button id="learn-close" aria-label="Close">&times;</button>
+  </div>
+  <div id="learn-list"></div>
+</aside>
+
+<!-- Quiz (verified-only) -->
+<aside id="quiz-panel" class="hidden">
+  <div class="ip-head">
+    <div>
+      <h3>Quiz <span class="pill ok" id="quiz-score">0/0</span></h3>
+      <p id="quiz-sub">FMA terminology · verified structures only</p>
+    </div>
+    <button id="quiz-close" aria-label="Close">&times;</button>
+  </div>
+  <div id="quiz-body"></div>
+</aside>
+
+<div id="toast" class="toast"></div>
+<div id="mini-load" class="hidden"></div>
+
+<footer id="footer">
+  <span>Male anatomy: <b>BodyParts3D</b> (CC BY-SA 2.1 JP) via <b>Z-Anatomy</b> (CC BY-SA 4.0, Kervyn &amp; Zieliński). Female anatomy: <b>Visible-Human Project</b> model via <b>HuBMAP CCF</b> (CC BY 4.0). FMA verifications use the BodyParts3D parts list + FMA/TA98.</span>
+  <span class="attrib">Educational use. Clinical decisions require professional verification. Female model scope: no muscles, no complete skeleton, no lymphatics.</span>
+</footer>
+
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
